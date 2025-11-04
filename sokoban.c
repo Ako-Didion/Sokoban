@@ -1,9 +1,11 @@
 #include <termios.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <cstdlib>
-#include <cstring>
+#include <stdlib.h>
+#include <string.h>
+
 
 #define TAILLE 12
 typedef char t_Plateau[TAILLE][TAILLE];
@@ -135,24 +137,24 @@ void deplacement(t_Plateau plateauJeu, char direction, int tabCoordo[][2])
             plateauJeu[joueurX][joueurY] = ' ';
             
         }
-        else if(plateauJeu[joueurX + x1][joueurY + y1] == '.'){
-            plateauJeu[joueurX + x1][joueurY + y1] = '+';
-            plateauJeu[joueurX][joueurY] = ' ';
-        }
         else if (plateauJeu[joueurX + x1][joueurY + y1] == '$')
         {
             if (plateauJeu[joueurX + x2][joueurY + y2] == '.')
             {
-                plateauJeu[joueurX + x2][joueurY + y2] = '*'
+                plateauJeu[joueurX + x2][joueurY + y2] = '*';
+                plateauJeu[joueurX + x1][joueurY + y1] = '@';
+                plateauJeu[joueurX][joueurY] = ' ';
             }
             
         }
+            
+    }
 
         tabCoordo[0][0] += x1;
         tabCoordo[0][1] += y1;
         nombreDeplacement++;
-    }
 }
+
 
 void reactualisation_plateau(t_Plateau plateauJeu, int tabCoordo[][2], int cpt)
 {
