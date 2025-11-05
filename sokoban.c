@@ -69,7 +69,6 @@ int main()
             {
                 deplacement(plateauJeu, touche, tabCordoo);
                 afficher_entete(fichier);
-                reactualisation_plateau(plateauJeu, tabCordoo, cpt);
                 afficher_plateau(plateauOriginal, plateauJeu);
             }
         }
@@ -245,7 +244,16 @@ void afficher_plateau(t_Plateau plateau_ori, t_Plateau plateau_jeu)
         printf("\t\t");
         for (int j = 0; j < TAILLE; j++)
         {
-            printf("%c", plateau_jeu[i][j]);
+            if (plateau_jeu[i][j] == '+')
+            {
+                printf("@");
+            }
+            else if (plateau_jeu[i][j] == '*')
+            {
+                printf("$");
+            }
+            else
+                printf("%c", plateau_jeu[i][j]);
         }
 
         printf("\n");
