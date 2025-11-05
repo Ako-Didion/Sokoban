@@ -29,7 +29,7 @@ int main()
     t_Plateau plateauOriginal;
     t_Plateau plateauJeu;
     char fichier[11];
-    int cpt = 0;
+    int cpt = 1;
     printf("Saisie le nom du Jeu : \n");
     scanf("%s", fichier);
     charger_partie(plateauOriginal, fichier);
@@ -37,7 +37,7 @@ int main()
     element_plateau(plateauOriginal, &cpt);
     int tabCordoo[cpt][2];
     coordo_plateau(plateauOriginal, tabCordoo);
-    while (!gagner(plateauJeu, tabCordoo, cpt))
+    while (gagner(plateauJeu, tabCordoo, cpt))
     {
 
         if (kbhit())
@@ -47,9 +47,9 @@ int main()
             {
                 int sauvegarde;
                 printf("partie abandonée \n");
-                printf("Veux tu sauvegarder la partie dans l'etat des choses ? (oui = 0 , non = 1)\n");
+                printf("Veux tu sauvegarder la partie dans l'etat des choses ? (oui = 1 , non = 0)\n");
                 scanf("%d", &sauvegarde);
-                if (sauvegarde == 0)
+                if (sauvegarde == 1)
                 {
                     printf("Le nom du fichier pour la sauvegarde ? \n");
                     scanf("%s", fichier);
@@ -81,12 +81,12 @@ bool gagner(t_Plateau plateauJeu, int tabCoordo[][2], int nombrePoint)
 {
     for (int i = 1; i < nombrePoint; i++)
     {
-        if (plateauJeu[tabCoordo[i][0]][tabCoordo[i][1]] != '$')
+        if (plateauJeu[tabCoordo[i][0]][tabCoordo[i][1]] != '*')
         {
-            return false;
+            return true;
         }
     }
-    return true;
+    return false;
 }
 
 void recomencer_partie(t_Plateau plateauJeu, t_Plateau plateauOriginal, int tabCoordo[][2])
@@ -107,7 +107,7 @@ void deplacement(t_Plateau plateauJeu, char direction, int tabCoordo[][2])
     int joueurX = tabCoordo[0][0];
     int joueurY = tabCoordo[0][1];
     int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
-    if (direction == 'w')
+    if (direction == 'z')
     {
         x1 = -1;
         x2 = -2;
@@ -117,7 +117,7 @@ void deplacement(t_Plateau plateauJeu, char direction, int tabCoordo[][2])
         x1 = 1;
         x2 = 2;
     }
-    else if (direction == 'a')
+    else if (direction == 'q')
     {
         y1 = -1;
         y2 = -2;
@@ -206,12 +206,13 @@ void element_plateau(t_Plateau plateau, int *compteurIndice)
     {
         for (int j = 0; j < TAILLE; j++)
         {
-            if (plateau[i][j] == '.' || plateau[i][j] == '@')
+            if (plateau[i][j] == '.' || plateau[i][j] == '*')
             {
                 (*compteurIndice)++;
             }
         }
     }
+    printf("%d",*compteurIndice);
 }
 
 void coordo_plateau(t_Plateau plateau, int tabCordoo[][2])
@@ -228,10 +229,16 @@ void coordo_plateau(t_Plateau plateau, int tabCordoo[][2])
                 tabCordoo[indexPoint][1] = j;
                 indexPoint++;
             }
-            else if (plateau[i][j] == '@')
+            else if (plateau[i][j] == '@' || plateau[i][j]=='+')
             {
                 tabCordoo[indexJoueur][0] = i;
                 tabCordoo[indexJoueur][1] = j;
+            }
+            else if (plateau[i][j] == '*')
+            {
+                tabCordoo[indexPoint][0] = i;
+                tabCordoo[indexPoint][1] = j;
+                indexPoint++;
             }
         }
     }
