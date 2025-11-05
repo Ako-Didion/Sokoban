@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #define TAILLE 12
 typedef char t_Plateau[TAILLE][TAILLE];
 
@@ -17,9 +16,10 @@ void afficher_entete(char fichier[]);
 void coordo_plateau(t_Plateau plateau, int tabCordoo[][2]);
 void element_plateau(t_Plateau plateau, int *compteurIndice);
 void deplacement(t_Plateau plateauJeu, char direction, int tabCoordo[][2]);
-void reactualisation_plateau(t_Plateau plateauJeu, int tabCoordo[][2], int cpt);
 void recomencer_partie(t_Plateau plateauJeu, t_Plateau plateauOriginal, int tabCoordo[][2]);
 bool gagner(t_Plateau plateauJeu, int tabCoordo[][2], int nombrePoint);
+void deplacement_joueur(t_Plateau plateauJeu, int joueurX, int joueurY, int x1, int y1);
+void deplacement_caisse(t_Plateau plateauJeu, int joueurX, int joueurY, int x1, int y1, int x2, int y2);
 int kbhit();
 
 int nombreDeplacement = 0;
@@ -108,7 +108,7 @@ void deplacement(t_Plateau plateauJeu, char direction, int tabCoordo[][2])
     int joueurX = tabCoordo[0][0];
     int joueurY = tabCoordo[0][1];
     int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
-    if (direction == 'z')
+    if (direction == 'w')
     {
         x1 = -1;
         x2 = -2;
@@ -118,7 +118,7 @@ void deplacement(t_Plateau plateauJeu, char direction, int tabCoordo[][2])
         x1 = 1;
         x2 = 2;
     }
-    else if (direction == 'q')
+    else if (direction == 'a')
     {
         y1 = -1;
         y2 = -2;
@@ -128,41 +128,75 @@ void deplacement(t_Plateau plateauJeu, char direction, int tabCoordo[][2])
         y1 = 1;
         y2 = 2;
     }
-
-    if (plateauJeu[joueurX + x1][joueurY + y1] != '#')
+    if (plateauJeu[joueurX + x1][joueurY + y1] != '#' && (x1 || y1) != 0)
     {
-        if (plateauJeu[joueurX + x1][joueurY + y1] == ' ')
+        if (plateauJeu[joueurX + x1][joueurY + y1] != '$' && plateauJeu[joueurX + x1][joueurY + y1] != '*')
         {
-            plateauJeu[joueurX + x1][joueurY + y1] = '@';
-            plateauJeu[joueurX][joueurY] = ' ';
-            
+            deplacement_joueur(plateauJeu, joueurX, joueurY, x1, y1);
+            tabCoordo[0][0] = joueurX + x1;
+            tabCoordo[0][1] = joueurY + y1;
+            nombreDeplacement++;
+        }
+        else if (plateauJeu[joueurX + x2][joueurY + y2] == ' ' || plateauJeu[joueurX + x2][joueurY + y2] == '.')
+        {
+            deplacement_caisse(plateauJeu, joueurX, joueurY, x1, y1, x2, y2);
+            tabCoordo[0][0] = joueurX + x1;
+            tabCoordo[0][1] = joueurY + y1;
+            nombreDeplacement++;
+        }
+    }
+}
+
+void deplacement_caisse(t_Plateau plateauJeu, int joueurX, int joueurY, int x1, int y1, int x2, int y2)
+{
+    if (plateauJeu[joueurX + x1][joueurY + y1] == '*' || plateauJeu[joueurX + x1][joueurY + y1] == '$')
+    {
+        if (plateauJeu[joueurX + x2][joueurY + y2] == ' ')
+        {
+            plateauJeu[joueurX + x2][joueurY + y2] = '$';
+        }
+        else if (plateauJeu[joueurX + x2][joueurY + y2] == '.')
+        {
+            plateauJeu[joueurX + x2][joueurY + y2] = '*';
+        }
+        if (plateauJeu[joueurX + x1][joueurY + y1] == '*')
+        {
+            plateauJeu[joueurX + x1][joueurY + y1] = '+';
         }
         else if (plateauJeu[joueurX + x1][joueurY + y1] == '$')
         {
-            if (plateauJeu[joueurX + x2][joueurY + y2] == '.')
-            {
-                plateauJeu[joueurX + x2][joueurY + y2] = '*';
-                plateauJeu[joueurX + x1][joueurY + y1] = '@';
-                plateauJeu[joueurX][joueurY] = ' ';
-            }
-            
+            plateauJeu[joueurX + x1][joueurY + y1] = '@';
         }
-            
+        if (plateauJeu[joueurX][joueurY] == '@')
+        {
+            plateauJeu[joueurX][joueurY] = ' ';
+        }
+        else if (plateauJeu[joueurX][joueurY] == '+')
+        {
+            plateauJeu[joueurX][joueurY] = '.';
+        }
     }
-
-        tabCoordo[0][0] += x1;
-        tabCoordo[0][1] += y1;
-        nombreDeplacement++;
 }
 
-
-void reactualisation_plateau(t_Plateau plateauJeu, int tabCoordo[][2], int cpt)
+void deplacement_joueur(t_Plateau plateauJeu, int joueurX, int joueurY, int x1, int y1)
 {
-    for (int i = 1; i < cpt; i++)
+    if (plateauJeu[joueurX][joueurY] == '+' || plateauJeu[joueurX][joueurY] == '@')
     {
-        if (plateauJeu[tabCoordo[i][0]][tabCoordo[i][1]] == ' ')
+        if (plateauJeu[joueurX + x1][joueurY + y1] == '.')
         {
-            plateauJeu[tabCoordo[i][0]][tabCoordo[i][1]] = '.';
+            plateauJeu[joueurX + x1][joueurY + y1] = '+';
+        }
+        else if (plateauJeu[joueurX + x1][joueurY + y1] == ' ')
+        {
+            plateauJeu[joueurX + x1][joueurY + y1] = '@';
+        }
+        if (plateauJeu[joueurX][joueurY] == '+')
+        {
+            plateauJeu[joueurX][joueurY] = '.';
+        }
+        else if (plateauJeu[joueurX][joueurY] == '@')
+        {
+            plateauJeu[joueurX][joueurY] = ' ';
         }
     }
 }
@@ -210,9 +244,9 @@ void afficher_plateau(t_Plateau plateau_ori, t_Plateau plateau_jeu)
     {
         printf("\t\t");
         for (int j = 0; j < TAILLE; j++)
-            {
-                printf("%c", plateau_jeu[i][j]);
-            }
+        {
+            printf("%c", plateau_jeu[i][j]);
+        }
 
         printf("\n");
     }
@@ -306,5 +340,3 @@ int kbhit()
     }
     return unCaractere;
 }
-
-
