@@ -7,201 +7,248 @@
 #include <string.h>
 
 #define TAILLE 12
+#define LIGNE 100
+#define COLONNE 2
+#define OUI 1
+#define TAILLE_NOM_FICHIER 20
+#define INDICE1 1
+#define INDICE2 2
+
 typedef char t_Plateau[TAILLE][TAILLE];
+typedef int t_Cordoo[LIGNE][COLONNE];
+
+const char MUR = '#';
+const char CAISSE = '$';
+const char POINT = '.';
+const char CAISSE_SUR_POINT = '*';
+const char VIDE = ' ';
+const char JOUEUR = '@';
+const char JOUEUR_SUR_POINT = '+';
+const char HAUT = 'z';
+const char BAS = 's';
+const char GAUCHE = 'q';
+const char DROITE = 'd';
+const char RECOMMENCER = 'r';
+const char ABANDONNER = 'x';
 
 void charger_partie(t_Plateau plateau, char fichier[]);
 void enregistrer_partie(t_Plateau plateau, char fichier[]);
-void afficher_plateau(t_Plateau plateau, t_Plateau plateau_jeu);
-void afficher_entete(char fichier[]);
-void coordo_plateau(t_Plateau plateau, int tabCordoo[][2]);
-void element_plateau(t_Plateau plateau, int *compteurIndice);
-void deplacement(t_Plateau plateauJeu, char direction, int tabCoordo[][2]);
-void recomencer_partie(t_Plateau plateauJeu, t_Plateau plateauOriginal, int tabCoordo[][2]);
-bool gagner(t_Plateau plateauJeu, int tabCoordo[][2], int nombrePoint);
-void deplacement_joueur(t_Plateau plateauJeu, int joueurX, int joueurY, int x1, int y1);
-void deplacement_caisse(t_Plateau plateauJeu, int joueurX, int joueurY, int x1, int y1, int x2, int y2);
+void afficher_plateau(t_Plateau plateau);
+void afficher_entete(char fichier[], int nDeplacement);
+void charger_coordo_plateau(t_Plateau plateau, t_Cordoo plateauCordoo);
+void compter_point(t_Plateau plateau, int *compteurIndice);
+void recomencer_partie(t_Plateau plateauJeu, char fichier[], int *nDeplacement);
+bool gagner_partie(t_Plateau plateauJeu, t_Cordoo plateauCordoo, int nombrePoint);
+void deplacer_joueur(t_Plateau plateauJeu, int sokoY, int sokoX, int y1, int x1);
+void deplacer_caisse(t_Plateau plateauJeu, int sokoY, int sokoX, int y1, int x1, int y2, int x2);
+void abbandonner_partie(t_Plateau plateauJeu, char fichier[], int nDeplacement);
+void trouver_direction(t_Plateau plateauJeu, t_Cordoo plateauCordoo, char touche, int *nDeplacement);
 int kbhit();
-
-int nombreDeplacement = 0;
 
 int main()
 {
-    t_Plateau plateauOriginal;
+    int nDeplacement = 0;
+    int nombrePoint = 1;
     t_Plateau plateauJeu;
-    char fichier[11];
-    int cpt = 1;
+    t_Cordoo plateauCordoo;
+    char fichier[TAILLE_NOM_FICHIER];
+    char touche = '\0';
     printf("Saisie le nom du Jeu : \n");
     scanf("%s", fichier);
-    charger_partie(plateauOriginal, fichier);
     charger_partie(plateauJeu, fichier);
-    element_plateau(plateauOriginal, &cpt);
-    int tabCordoo[cpt][2];
-    coordo_plateau(plateauOriginal, tabCordoo);
-    while (gagner(plateauJeu, tabCordoo, cpt))
+    compter_point(plateauJeu, &nombrePoint);
+    charger_coordo_plateau(plateauJeu, plateauCordoo);
+    while (gagner_partie(plateauJeu, plateauCordoo, nombrePoint) && touche != ABANDONNER)
     {
-
         if (kbhit())
         {
-            char touche = getchar();
-            if (touche == 'x')
+            touche = getchar();
+            if (touche == ABANDONNER)
             {
-                int sauvegarde;
-                printf("partie abandonée \n");
-                printf("Veux tu sauvegarder la partie dans l'etat des choses ? (oui = 1 , non = 0)\n");
-                scanf("%d", &sauvegarde);
-                if (sauvegarde == 1)
-                {
-                    printf("Le nom du fichier pour la sauvegarde ? \n");
-                    scanf("%s", fichier);
-                    strcat(fichier, ".sok");
-                    enregistrer_partie(plateauJeu, fichier);
-                    printf("Partie sauvegardée. Au revoir!\n");
-                }
-                return 0;
+                abbandonner_partie(plateauJeu, fichier, nDeplacement);
             }
-            else if (touche == 'r')
+
+            else if (touche == RECOMMENCER)
             {
-                recomencer_partie(plateauJeu, plateauOriginal, tabCordoo);
-                afficher_entete(fichier);
-                afficher_plateau(plateauOriginal, plateauJeu);
+                recomencer_partie(plateauJeu, fichier, &nDeplacement);
+                charger_coordo_plateau(plateauJeu, plateauCordoo);
+                afficher_entete(fichier, nDeplacement);
+                afficher_plateau(plateauJeu);
             }
+
             else
             {
-                deplacement(plateauJeu, touche, tabCordoo);
-                afficher_entete(fichier);
-                afficher_plateau(plateauOriginal, plateauJeu);
+                trouver_direction(plateauJeu, plateauCordoo, touche, &nDeplacement);
+                afficher_entete(fichier, nDeplacement);
+                afficher_plateau(plateauJeu);
             }
         }
     }
-    printf("Vous avez gagner ! \n");
-    return 0;
+    if (!gagner_partie(plateauJeu, plateauCordoo, nombrePoint))
+    {
+        printf("Vous avez gagnée la partie ! \n");
+    }
+    else
+    {
+        printf("Partie abandonnée, Au revoir ! \n");
+    }
+    return EXIT_SUCCESS;
 }
 
-bool gagner(t_Plateau plateauJeu, int tabCoordo[][2], int nombrePoint)
+void abbandonner_partie(t_Plateau plateauJeu, char fichier[], int nDeplacement)
 {
+    int sauvegarde;
+    printf("partie abandonée \n");
+    printf("Veux tu sauvegarder la partie ? (oui = 1 , non = 0)\n");
+    scanf("%d", &sauvegarde);
+    if (sauvegarde)
+    {
+        printf("Le nom du fichier pour la sauvegarde ? (sans .sok) \n");
+        scanf("%s", fichier);
+        strcat(fichier, ".sok");
+        enregistrer_partie(plateauJeu, fichier);
+        printf("Partie sauvegardée. Au revoir!\n");
+    }
+}
+
+bool gagner_partie(t_Plateau plateauJeu, t_Cordoo pointCordoo, int nombrePoint)
+{
+    bool gagne = false;
     for (int i = 1; i < nombrePoint; i++)
     {
-        if (plateauJeu[tabCoordo[i][0]][tabCoordo[i][1]] != '*')
+        if (plateauJeu[pointCordoo[i][0]][pointCordoo[i][1]] != CAISSE_SUR_POINT)
         {
-            return true;
+            gagne = true;
         }
     }
-    return false;
+    return gagne;
 }
 
-void recomencer_partie(t_Plateau plateauJeu, t_Plateau plateauOriginal, int tabCoordo[][2])
+void recomencer_partie(t_Plateau plateauJeu, char fichier[], int *nDeplacement)
 {
-    for (int i = 0; i < TAILLE; i++)
+    int recommencer;
+    printf("Veux tu recommencer la partie ? (oui = 1 , non = 0)\n");
+    scanf("%d", &recommencer);
+    if (recommencer)
     {
-        for (int j = 0; j < TAILLE; j++)
-        {
-            plateauJeu[i][j] = plateauOriginal[i][j];
-        }
+        charger_partie(plateauJeu, fichier);
+        *nDeplacement = 0;
     }
-    coordo_plateau(plateauJeu, tabCoordo);
-    nombreDeplacement = 0;
 }
 
-void deplacement(t_Plateau plateauJeu, char direction, int tabCoordo[][2])
+void trouver_direction(t_Plateau plateauJeu, t_Cordoo positionJoueur, char touche, int *nDeplacement)
 {
-    int joueurX = tabCoordo[0][0];
-    int joueurY = tabCoordo[0][1];
-    int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
-    if (direction == 'z')
-    {
-        x1 = -1;
-        x2 = -2;
-    }
-    else if (direction == 's')
-    {
-        x1 = 1;
-        x2 = 2;
-    }
-    else if (direction == 'q')
+    int sokoX = positionJoueur[0][1];
+    int sokoY = positionJoueur[0][0];
+    int y1 = 0, x1 = 0, y2 = 0, x2 = 0;
+    if (touche == HAUT)
     {
         y1 = -1;
         y2 = -2;
     }
-    else if (direction == 'd')
+    else if (touche == BAS)
     {
         y1 = 1;
         y2 = 2;
     }
-    if (plateauJeu[joueurX + x1][joueurY + y1] != '#' && (x1 || y1) != 0)
+    else if (touche == GAUCHE)
     {
-        if (plateauJeu[joueurX + x1][joueurY + y1] != '$' && plateauJeu[joueurX + x1][joueurY + y1] != '*')
+        x1 = -1;
+        x2 = -2;
+    }
+    else if (touche == DROITE)
+    {
+        x1 = 1;
+        x2 = 2;
+    }
+
+    if (plateauJeu[sokoY + y1][sokoX + x1] != MUR && (x1 + y1) != 0)
+    {
+        if (plateauJeu[sokoY + y1][sokoX + x1] != CAISSE &&
+            plateauJeu[sokoY + y1][sokoX + x1] != CAISSE_SUR_POINT)
         {
-            deplacement_joueur(plateauJeu, joueurX, joueurY, x1, y1);
-            tabCoordo[0][0] = joueurX + x1;
-            tabCoordo[0][1] = joueurY + y1;
-            nombreDeplacement++;
+            deplacer_joueur(plateauJeu, sokoY, sokoX, y1, x1);
+            positionJoueur[0][0] = sokoY + y1;
+            positionJoueur[0][1] = sokoX + x1;
+            (*nDeplacement)++;
         }
-        else if (plateauJeu[joueurX + x2][joueurY + y2] == ' ' || plateauJeu[joueurX + x2][joueurY + y2] == '.')
+        else if (plateauJeu[sokoY + y2][sokoX + x2] == VIDE ||
+                 plateauJeu[sokoY + y2][sokoX + x2] == POINT)
         {
-            deplacement_caisse(plateauJeu, joueurX, joueurY, x1, y1, x2, y2);
-            tabCoordo[0][0] = joueurX + x1;
-            tabCoordo[0][1] = joueurY + y1;
-            nombreDeplacement++;
+            deplacer_caisse(plateauJeu, sokoY, sokoX, y1, x1, y2, x2);
+            positionJoueur[0][0] = sokoY + y1;
+            positionJoueur[0][1] = sokoX + x1;
+            (*nDeplacement)++;
         }
     }
 }
 
-void deplacement_caisse(t_Plateau plateauJeu, int joueurX, int joueurY, int x1, int y1, int x2, int y2)
+void deplacer_caisse(t_Plateau plateauJeu, int sokoY, int sokoX, int y1, int x1, int y2, int x2)
 {
-    if (plateauJeu[joueurX + x2][joueurY + y2] == ' ')
+    int caseDevantCaisse = plateauJeu[sokoY + y2][sokoX + x2];
+    int caseDevantJoueur = plateauJeu[sokoY + y1][sokoX + x1];
+
+    if (caseDevantCaisse == VIDE)
     {
-        plateauJeu[joueurX + x2][joueurY + y2] = '$';
+        plateauJeu[sokoY + y2][sokoX + x2] = CAISSE;
     }
-    else if (plateauJeu[joueurX + x2][joueurY + y2] == '.')
+    else if (caseDevantCaisse == POINT)
     {
-        plateauJeu[joueurX + x2][joueurY + y2] = '*';
+        plateauJeu[sokoY + y2][sokoX + x2] = CAISSE_SUR_POINT;
     }
-    if (plateauJeu[joueurX + x1][joueurY + y1] == '*')
+
+    if (caseDevantJoueur == CAISSE_SUR_POINT)
     {
-        plateauJeu[joueurX + x1][joueurY + y1] = '.';
+        plateauJeu[sokoY + y1][sokoX + x1] = POINT;
     }
     else
     {
-        plateauJeu[joueurX + x1][joueurY + y1] = ' ';
+        plateauJeu[sokoY + y1][sokoX + x1] = VIDE;
     }
-    deplacement_joueur(plateauJeu, joueurX, joueurY, x1, y1);
+    deplacer_joueur(plateauJeu, sokoY, sokoX, y1, x1);
 }
 
-void deplacement_joueur(t_Plateau plateauJeu, int joueurX, int joueurY, int x1, int y1)
+void deplacer_joueur(t_Plateau plateauJeu, int sokoY, int sokoX, int y1, int x1)
 {
-    if (plateauJeu[joueurX + x1][joueurY + y1] == ' ')
+    int caseDevantJoueur = plateauJeu[sokoY + y1][sokoX + x1];
+    int caseJoueur = plateauJeu[sokoY][sokoX];
+
+    if (caseDevantJoueur == VIDE)
     {
-        plateauJeu[joueurX + x1][joueurY + y1] = '@';
-        if (plateauJeu[joueurX][joueurY] == '+')
+        plateauJeu[sokoY + y1][sokoX + x1] = JOUEUR;
+        if (caseJoueur == JOUEUR_SUR_POINT)
         {
-            plateauJeu[joueurX][joueurY] = '.';
+            plateauJeu[sokoY][sokoX] = POINT;
         }
+
         else
         {
-            plateauJeu[joueurX][joueurY] = ' ';
+            plateauJeu[sokoY][sokoX] = VIDE;
         }
     }
-    else if (plateauJeu[joueurX + x1][joueurY + y1] == '.')
+
+    else if (caseDevantJoueur == POINT)
     {
-        plateauJeu[joueurX + x1][joueurY + y1] = '+';
-        if (plateauJeu[joueurX][joueurY] == '+')
+        plateauJeu[sokoY + y1][sokoX + x1] = JOUEUR_SUR_POINT;
+        if (caseJoueur == JOUEUR_SUR_POINT)
         {
-            plateauJeu[joueurX][joueurY] = '.';
+            plateauJeu[sokoY][sokoX] = POINT;
         }
-        else if (plateauJeu[joueurX][joueurY] == '@')
+
+        else if (caseJoueur == JOUEUR)
         {
-            plateauJeu[joueurX][joueurY] = ' ';
+            plateauJeu[sokoY][sokoX] = VIDE;
         }
     }
 }
 
-void element_plateau(t_Plateau plateau, int *compteurIndice)
+void compter_point(t_Plateau plateau, int *compteurIndice)
 {
     for (int i = 0; i < TAILLE; i++)
     {
         for (int j = 0; j < TAILLE; j++)
         {
-            if (plateau[i][j] == '.' || plateau[i][j] == '*')
+            if (plateau[i][j] == POINT || plateau[i][j] == CAISSE_SUR_POINT)
             {
                 (*compteurIndice)++;
             }
@@ -210,49 +257,49 @@ void element_plateau(t_Plateau plateau, int *compteurIndice)
     printf("%d", *compteurIndice);
 }
 
-void coordo_plateau(t_Plateau plateau, int tabCordoo[][2])
+void charger_coordo_plateau(t_Plateau plateau, t_Cordoo plateauCordoo)
 {
-    int indexPoint = 1;
-    int indexJoueur = 0;
+    int indicePoint = 1;
+    int indiceJoueur = 0;
     for (int i = 0; i < TAILLE; i++)
     {
         for (int j = 0; j < TAILLE; j++)
         {
-            if (plateau[i][j] == '.')
+            if (plateau[i][j] == POINT)
             {
-                tabCordoo[indexPoint][0] = i;
-                tabCordoo[indexPoint][1] = j;
-                indexPoint++;
+                plateauCordoo[indicePoint][0] = i;
+                plateauCordoo[indicePoint][1] = j;
+                indicePoint++;
             }
-            else if (plateau[i][j] == '@' || plateau[i][j] == '+')
+            else if (plateau[i][j] == CAISSE_SUR_POINT)
             {
-                tabCordoo[indexJoueur][0] = i;
-                tabCordoo[indexJoueur][1] = j;
+                plateauCordoo[indicePoint][0] = i;
+                plateauCordoo[indicePoint][1] = j;
+                indicePoint++;
             }
-            else if (plateau[i][j] == '*')
+            else if (plateau[i][j] == JOUEUR || plateau[i][j] == JOUEUR_SUR_POINT)
             {
-                tabCordoo[indexPoint][0] = i;
-                tabCordoo[indexPoint][1] = j;
-                indexPoint++;
+                plateauCordoo[indiceJoueur][0] = i;
+                plateauCordoo[indiceJoueur][1] = j;
             }
         }
     }
 }
 
-void afficher_plateau(t_Plateau plateau_ori, t_Plateau plateau_jeu)
+void afficher_plateau(t_Plateau plateau_jeu)
 {
     for (int i = 0; i < TAILLE; i++)
     {
         printf("\t\t");
         for (int j = 0; j < TAILLE; j++)
         {
-            if (plateau_jeu[i][j] == '+')
+            if (plateau_jeu[i][j] == JOUEUR_SUR_POINT)
             {
-                printf("@");
+                printf("%c", JOUEUR);
             }
-            else if (plateau_jeu[i][j] == '*')
+            else if (plateau_jeu[i][j] == CAISSE_SUR_POINT)
             {
-                printf("$");
+                printf("%c", CAISSE);
             }
             else
             {
@@ -264,7 +311,7 @@ void afficher_plateau(t_Plateau plateau_ori, t_Plateau plateau_jeu)
     }
 }
 
-void afficher_entete(char fichier[])
+void afficher_entete(char fichier[], int nDeplacement)
 {
     system("clear");
     printf("\tNom de la partie %s\n", fichier);
@@ -276,7 +323,7 @@ void afficher_entete(char fichier[])
     printf("\t x pour abandonner\n");
     printf("\t r pour recommencer\n");
     printf("\n");
-    printf("\tNombre de déplacements \n\t        effectué : %d", nombreDeplacement);
+    printf("\tNombre de déplacements \n\t        effectué : %d", nDeplacement);
     printf("\n");
 }
 
