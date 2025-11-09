@@ -28,6 +28,7 @@
 /* Déclaration des types */
 typedef char t_Plateau[TAILLE][TAILLE]; // Type pour le plateau de jeu (matrice de caractères)
 typedef int t_Cordoo[LIGNE][COLONNE];   // Type pour les coordonnées (tableau d'entiers)
+typedef char t_tabDeplacement[1000];    // Type pour enregistrer les déplacements
 
 /* Déclaration des constantes de jeu */
 const char MUR = '#';
@@ -43,11 +44,14 @@ const char GAUCHE = 'q';
 const char DROITE = 'd';
 const char RECOMMENCER = 'r';
 const char ABANDONNER = 'x';
+const char ZOOM_IN = '+';
+const char ZOOM_OUT = '-';
+const char UNDO = 'u';
 
 /* Déclaration des procédures et fonctions (Prototypes) */
 void charger_partie(t_Plateau plateau, char fichier[]);
 void enregistrer_partie(t_Plateau plateau, char fichier[]);
-void afficher_plateau(t_Plateau plateau);
+void afficher_plateau(t_Plateau plateau, int zoom);
 void afficher_entete(char fichier[], int nDeplacement);
 void charger_coordo_plateau(t_Plateau plateau, t_Cordoo plateauCordoo);
 void compter_point(t_Plateau plateau, int *compteurIndice);
@@ -57,7 +61,8 @@ bool gagner_partie(t_Plateau plateauJeu, t_Cordoo plateauCordoo, int nombrePoint
 void deplacer_joueur(t_Plateau plateauJeu, int sokoY, int sokoX, int y1, int x1);
 void deplacer_caisse(t_Plateau plateauJeu, int sokoY, int sokoX, int y1, int x1, int y2, int x2);
 void abbandonner_partie(t_Plateau plateauJeu, char fichier[], int nDeplacement);
-void trouver_direction(t_Plateau plateauJeu, t_Cordoo plateauCordoo, char touche, int *nDeplacement);
+void trouver_direction(t_Plateau plateauJeu, t_Cordoo positionJoueur, t_tabDeplacement tabDirection, char touche, int *nDeplacement);
+void ZOOM_IN_OUT(char touche, int *zoom);
 int kbhit();
 
 /**
@@ -72,6 +77,7 @@ int main()
     // Déclarations des variables locales au début de la fonction
     int nDeplacement = 0;             // Compteur de déplacements
     int nombrePoint = 1;              // Nombre de points (cibles) à atteindre
+    int zoom = 1;                     // Niveau de zoom initial
     t_Plateau plateauJeu;             // Plateau de jeu actuel
     t_Cordoo plateauCordoo;           // Tableau de coordonnées pour le joueur et les points
     char fichier[TAILLE_NOM_FICHIER]; // Nom du fichier de la partie
@@ -101,13 +107,20 @@ int main()
                 recomencer_partie(plateauJeu, fichier, &nDeplacement); // Gestion du redémarrage
                 charger_coordo_plateau(plateauJeu, plateauCordoo);     // Mise à jour des coordonnées
                 afficher_entete(fichier, nDeplacement);
+                afficher_plateau(plateauJeu, zoom);
+            }
+            else if (touche == ZOOM_IN || touche == ZOOM_OUT) // Recommencer la partie
+            {
+                ZOOM_IN_OUT(touche, &zoom); // Gestion du zoom
+                afficher_entete(fichier, nDeplacement);
+                afficher_plateau(plateauJeu, zoom);
             }
 
             else // Déplacement
             {
                 trouver_direction(plateauJeu, plateauCordoo, touche, &nDeplacement); // Tente d'appliquer le déplacement
                 afficher_entete(fichier, nDeplacement);
-                afficher_plateau(plateauJeu);
+                afficher_plateau(plateauJeu, zoom);
             }
         }
     }
@@ -121,6 +134,33 @@ int main()
         printf("Partie abandonnée, Au revoir ! \n");
     }
     return EXIT_SUCCESS; // Retourne le succès du programme
+}
+
+void enregistrer_deplacements(t_tabDeplacement t, int nb, char fic[])
+{
+    FILE *f;
+
+    f = fopen(fic, "w");
+    fwrite(t, sizeof(char), nb, f);
+    fclose(f);
+}
+
+void memoriser_deplacement(t_tabDeplacement t, char touche, int nb)
+{
+    t[*] = touche;
+
+}
+
+void ZOOM_IN_OUT(char touche, int *zoom)
+{
+    if (touche == ZOOM_IN && *zoom < 3)
+    {
+        (*zoom)++;
+    }
+    else if (touche == ZOOM_OUT && *zoom >= 1)
+    {
+        (*zoom)--;
+    }
 }
 
 /**
@@ -206,7 +246,7 @@ void recomencer_partie(t_Plateau plateauJeu, char fichier[], int *nDeplacement)
  *
  * Calcule les coordonnées de destination, vérifie les règles de collision (mur, caisse) et met à jour le plateau.
  */
-void trouver_direction(t_Plateau plateauJeu, t_Cordoo positionJoueur, char touche, int *nDeplacement)
+void trouver_direction(t_Plateau plateauJeu, t_Cordoo positionJoueur, t_tabDeplacement tabDirection, char touche, int *nDeplacement)
 {
     // Coordonnées actuelles du joueur
     int sokoX = positionJoueur[0][1];
@@ -411,32 +451,40 @@ void charger_coordo_plateau(t_Plateau plateau, t_Cordoo plateauCordoo)
  * Affiche le plateau, en remplaçant les symboles ('*' et '+')
  * par les symboles visibles ('$' et '@') pour l'utilisateur.
  */
-void afficher_plateau(t_Plateau plateau_jeu)
-{
+void afficher_plateau(t_Plateau plateau_jeu, int zoom)
+{ // Facteur de zoom (1 = normal, 2 = double taille)
     for (int i = 0; i < TAILLE; i++)
     {
-        printf("\t\t"); // Indentation
-        for (int j = 0; j < TAILLE; j++)
+        for (int ligne = 0; ligne < zoom; ligne++) // double la hauteur
         {
-            // Affichage du JOUEUR sur un POINT (affiche '@')
-            if (plateau_jeu[i][j] == JOUEUR_SUR_POINT)
-            {
-                printf("%c", JOUEUR);
-            }
-            // Affichage de la CAISSE sur un POINT (affiche '$')
-            else if (plateau_jeu[i][j] == CAISSE_SUR_POINT)
-            {
-                printf("%c", CAISSE);
-            }
-            else
-            {
-                printf("%c", plateau_jeu[i][j]); // Affichage des autres symboles
-            }
+            printf("\t\t"); // indentation
+
+            for (int j = 0; j < TAILLE; j++)
+                if (plateau_jeu[i][j] == JOUEUR_SUR_POINT)
+                {
+                    for (int k = 0; k < zoom; k++)
+                    {
+                        printf("%c", JOUEUR);
+                    }
+                }
+                else if (plateau_jeu[i][j] == CAISSE_SUR_POINT)
+                {
+                    for (int k = 0; k < zoom; k++)
+                    {
+                        printf("%c", CAISSE);
+                    }
+                }
+                else
+                {
+                    for (int k = 0; k < zoom; k++)
+                    {
+                        printf("%c", plateau_jeu[i][j]);
+                    }
+                }
+            printf("\n");
         }
-        printf("\n");
     }
 }
-
 /**
  * @brief Procédure pour afficher l'en-tête de la partie et les commandes.
  * @param fichier de type char[], Entrée : le nom du fichier de la partie.
