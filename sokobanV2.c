@@ -63,6 +63,11 @@ void deplacer_caisse(t_Plateau plateauJeu, int sokoY, int sokoX, int y1, int x1,
 void abbandonner_partie(t_Plateau plateauJeu, char fichier[], int nDeplacement);
 void trouver_direction(t_Plateau plateauJeu, t_Cordoo positionJoueur, t_tabDeplacement tabDirection, char touche, int *nDeplacement);
 void ZOOM_IN_OUT(char touche, int *zoom);
+void enregistrer_deplacements(t_tabDeplacement t, int nb, char fic[]);
+void memoriser_deplacement(t_tabDeplacement t, char touche, int indiceDeplacement, bool maj);
+bool verifier_majuscule();
+void revenir_deplacement(t_tabDeplacement t, t_Plateau p, t_Cordoo tCordoo);
+
 int kbhit();
 
 /**
@@ -75,13 +80,15 @@ int kbhit();
 int main()
 {
     // Déclarations des variables locales au début de la fonction
-    int nDeplacement = 0;             // Compteur de déplacements
-    int nombrePoint = 1;              // Nombre de points (cibles) à atteindre
-    int zoom = 1;                     // Niveau de zoom initial
-    t_Plateau plateauJeu;             // Plateau de jeu actuel
-    t_Cordoo plateauCordoo;           // Tableau de coordonnées pour le joueur et les points
+    int nDeplacement = 0; // Compteur de déplacements
+    int nombrePoint = 1;  // Nombre de points (cibles) à atteindre
+    int zoom = 1;         // Niveau de zoom initial
+    t_Plateau plateauJeu; // Plateau de jeu actuel
+    t_Cordoo plateauCordoo;
+    t_tabDeplacement tabDeplacement;  // Tableau de coordonnées pour le joueur et les points
     char fichier[TAILLE_NOM_FICHIER]; // Nom du fichier de la partie
-    char touche = '\0';               // Touche saisie par l'utilisateur
+    char touche = '\0';
+    // Touche saisie par l'utilisateur
 
     printf("Saisie le nom du Jeu : \n");
     scanf("%s", fichier); // Lecture du nom du fichier
@@ -89,6 +96,11 @@ int main()
     charger_partie(plateauJeu, fichier);               // Chargement initial de la partie
     compter_point(plateauJeu, &nombrePoint);           // Compte le nombre de cibles
     charger_coordo_plateau(plateauJeu, plateauCordoo); // Charge les coordonnées initiales
+
+    for (int i = 0; i < 1000; i++)
+    {
+        tabDeplacement[i] = ' '; // Initialisation du tableau de déplacements
+    }
 
     // Boucle de jeu principale: continue tant que la partie n'est PAS gagnée et que l'utilisateur n'abandonne pas
     while (gagner_partie(plateauJeu, plateauCordoo, nombrePoint) && touche != ABANDONNER)
@@ -115,12 +127,23 @@ int main()
                 afficher_entete(fichier, nDeplacement);
                 afficher_plateau(plateauJeu, zoom);
             }
-
-            else // Déplacement
+            else if (touche == UNDO)
             {
-                trouver_direction(plateauJeu, plateauCordoo, touche, &nDeplacement); // Tente d'appliquer le déplacement
+                // Fonctionnalité d'annulation non implémentée
+                revenir_deplacement(tabDeplacement, plateauJeu, plateauCordoo);
                 afficher_entete(fichier, nDeplacement);
                 afficher_plateau(plateauJeu, zoom);
+            }
+            else // Déplacement
+            {
+                trouver_direction(plateauJeu, plateauCordoo, tabDeplacement, touche, &nDeplacement); // Tente d'appliquer le déplacement
+                afficher_entete(fichier, nDeplacement);
+                afficher_plateau(plateauJeu, zoom);
+                // system("clear");
+                // for (int i = 0; i < 1000; i++)
+                //{
+                //     printf("%c", tabDeplacement[i]);
+                // }
             }
         }
     }
@@ -136,6 +159,44 @@ int main()
     return EXIT_SUCCESS; // Retourne le succès du programme
 }
 
+void revenir_deplacement(t_tabDeplacement t, t_Plateau p, t_Cordoo tCordoo)
+{
+    int indice = 0;
+
+    while (t[indice] != ' ')
+    {
+        indice++;
+    }
+    indice--;
+
+    printf("%c", t[indice]);
+
+    if (t[indice] == 'H')
+    {
+        deplacer_joueur(p, tCordoo[0][0], tCordoo[0][1], +1, 0);
+        tCordoo[0][0] -= 1;
+        indice--;
+    }
+    else if (t[indice] == 'B')
+    {
+        p[tCordoo[0][0]][tCordoo[0][1] - 1] = VIDE;
+        p[tCordoo[0][0]][tCordoo[0][1]] = CAISSE;
+        indice--;
+    }
+    else if (t[indice] == 'G')
+    {
+        p[tCordoo[0][0] + 1][tCordoo[0][1]] = VIDE;
+        p[tCordoo[0][0]][tCordoo[0][1]] = CAISSE;
+        indice--;
+    }
+    else if (t[indice] == 'D')
+    {
+        p[tCordoo[0][0] - 1][tCordoo[0][1]] = VIDE;
+        p[tCordoo[0][0]][tCordoo[0][1]] = CAISSE;
+        indice--;
+    }
+}
+
 void enregistrer_deplacements(t_tabDeplacement t, int nb, char fic[])
 {
     FILE *f;
@@ -145,10 +206,41 @@ void enregistrer_deplacements(t_tabDeplacement t, int nb, char fic[])
     fclose(f);
 }
 
-void memoriser_deplacement(t_tabDeplacement t, char touche, int nb)
+bool verifier_majuscule()
 {
-    t[*] = touche;
+    return true;
+}
 
+void memoriser_deplacement(t_tabDeplacement t, char touche, int indiceDeplacement, bool maj)
+{
+    int indice = 0;
+
+    while (t[indice] != ' ')
+    {
+        indice++;
+    }
+
+    if (touche == HAUT)
+    {
+        t[indice] = 'h';
+    }
+    else if (touche == BAS)
+    {
+        t[indice] = 'b';
+    }
+    else if (touche == GAUCHE)
+    {
+        t[indice] = 'g';
+    }
+    else if (touche == DROITE)
+    {
+        t[indice] = 'd';
+    }
+
+    if (maj)
+    {
+        t[indice + 1] = t[indice] - 32;
+    }
 }
 
 void ZOOM_IN_OUT(char touche, int *zoom)
@@ -157,7 +249,7 @@ void ZOOM_IN_OUT(char touche, int *zoom)
     {
         (*zoom)++;
     }
-    else if (touche == ZOOM_OUT && *zoom >= 1)
+    else if (touche == ZOOM_OUT && *zoom > 1)
     {
         (*zoom)--;
     }
@@ -252,13 +344,15 @@ void trouver_direction(t_Plateau plateauJeu, t_Cordoo positionJoueur, t_tabDepla
     int sokoX = positionJoueur[0][1];
     int sokoY = positionJoueur[0][0];
 
+    bool maj = false;
+
     // Offsets de déplacement: (y1, x1) pour la case devant le joueur, (y2, x2) pour la case devant la caisse
     int y1 = 0, x1 = 0, y2 = 0, x2 = 0;
 
     // Détermination des offsets en fonction de la touche
     if (touche == HAUT) // 'z'
     {
-        y1 = -1;
+        y1 = -1; // Touche saisie par l'u
         y2 = -2;
     }
     else if (touche == BAS) // 's'
@@ -296,8 +390,10 @@ void trouver_direction(t_Plateau plateauJeu, t_Cordoo positionJoueur, t_tabDepla
             deplacer_caisse(plateauJeu, sokoY, sokoX, y1, x1, y2, x2); // Déplacement de la caisse et du joueur
             positionJoueur[0][0] = sokoY + y1;
             positionJoueur[0][1] = sokoX + x1;
+            maj = verifier_majuscule();
             (*nDeplacement)++;
         }
+        memoriser_deplacement(tabDirection, touche, *nDeplacement, maj);
     }
 }
 
