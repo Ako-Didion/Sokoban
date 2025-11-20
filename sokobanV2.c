@@ -56,7 +56,7 @@ void afficher_entete(char fichier[], int nDeplacement);
 void charger_coordo_plateau(t_Plateau plateau, t_Cordoo plateauCordoo);
 void compter_point(t_Plateau plateau, int *compteurIndice);
 void deplacement(t_Plateau plateauJeu, char touche, t_Cordoo plateauCordoo, int *nDeplacement);
-void recomencer_partie(t_Plateau plateauJeu, char fichier[], int *nDeplacement);
+void recomencer_partie(t_Plateau plateauJeu, char fichier[], int *nDeplacement, t_tabDeplacement tab);
 bool gagner_partie(t_Plateau plateauJeu, t_Cordoo plateauCordoo, int nombrePoint);
 void deplacer_joueur(t_Plateau plateauJeu, int sokoY, int sokoX, int y1, int x1);
 void deplacer_caisse(t_Plateau plateauJeu, int sokoY, int sokoX, int y1, int x1, int y2, int x2);
@@ -67,6 +67,7 @@ void enregistrer_deplacements(t_tabDeplacement t, int nb, char fic[]);
 void memoriser_deplacement(t_tabDeplacement t, char touche, int indiceDeplacement, bool maj);
 bool verifier_majuscule();
 void revenir_deplacement(t_tabDeplacement t, t_Plateau p, t_Cordoo tCordoo);
+void initialiser_plateau(t_tabDeplacement tab);
 
 int kbhit();
 
@@ -89,18 +90,12 @@ int main()
     char fichier[TAILLE_NOM_FICHIER]; // Nom du fichier de la partie
     char touche = '\0';
     // Touche saisie par l'utilisateur
-
     printf("Saisie le nom du Jeu : \n");
-    scanf("%s", fichier); // Lecture du nom du fichier
-
+    scanf("%s", fichier);                              // Lecture du nom du fichier
     charger_partie(plateauJeu, fichier);               // Chargement initial de la partie
     compter_point(plateauJeu, &nombrePoint);           // Compte le nombre de cibles
     charger_coordo_plateau(plateauJeu, plateauCordoo); // Charge les coordonnées initiales
-
-    for (int i = 0; i < 1000; i++)
-    {
-        tabDeplacement[i] = ' '; // Initialisation du tableau de déplacements
-    }
+    initialiser_plateau(tabDeplacement);
 
     // Boucle de jeu principale: continue tant que la partie n'est PAS gagnée et que l'utilisateur n'abandonne pas
     while (gagner_partie(plateauJeu, plateauCordoo, nombrePoint) && touche != ABANDONNER)
@@ -113,41 +108,29 @@ int main()
             {
                 abbandonner_partie(plateauJeu, fichier, nDeplacement); // Gestion de l'abandon
             }
-
             else if (touche == RECOMMENCER)
             {
-                recomencer_partie(plateauJeu, fichier, &nDeplacement); // Gestion du redémarrage
-                charger_coordo_plateau(plateauJeu, plateauCordoo);     // Mise à jour des coordonnées
-                afficher_entete(fichier, nDeplacement);
-                afficher_plateau(plateauJeu, zoom);
+                recomencer_partie(plateauJeu, fichier, &nDeplacement, tabDeplacement); // Gestion du redémarrage
+                charger_coordo_plateau(plateauJeu, plateauCordoo);                     // Mise à jour des coordonnées
             }
             else if (touche == ZOOM_IN || touche == ZOOM_OUT) // Recommencer la partie
             {
                 ZOOM_IN_OUT(touche, &zoom); // Gestion du zoom
-                afficher_entete(fichier, nDeplacement);
-                afficher_plateau(plateauJeu, zoom);
             }
             else if (touche == UNDO)
             {
                 // Fonctionnalité d'annulation non implémentée
-                for (int i = 0; i < 1000; i++)
-                {
-                    printf("%c", tabDeplacement[i]);
-                }
                 revenir_deplacement(tabDeplacement, plateauJeu, plateauCordoo);
-                afficher_entete(fichier, nDeplacement);
-                afficher_plateau(plateauJeu, zoom);
-                        }
+            }
             else // Déplacement
             {
                 trouver_direction(plateauJeu, plateauCordoo, tabDeplacement, touche, &nDeplacement); // Tente d'appliquer le déplacement
-                afficher_entete(fichier, nDeplacement);
-                afficher_plateau(plateauJeu, zoom);
-                // system("clear");
-                // for (int i = 0; i < 1000; i++)
-                //{
-                //     printf("%c", tabDeplacement[i]);
-                // }
+            }
+            afficher_entete(fichier, nDeplacement);
+            afficher_plateau(plateauJeu, zoom);
+            for (int i = 0; i < 1000; i++)
+            {
+                printf("%c", tabDeplacement[i]); // Initialisation du tableau de déplacements
             }
         }
     }
@@ -163,6 +146,14 @@ int main()
     return EXIT_SUCCESS; // Retourne le succès du programme
 }
 
+void initialiser_plateau(t_tabDeplacement tab)
+{
+    for (int i = 0; i < 1000; i++)
+    {
+        tab[i] = ' '; // Initialisation du tableau de déplacements
+    }
+}
+
 void revenir_deplacement(t_tabDeplacement t, t_Plateau p, t_Cordoo positionJoueur)
 {
     int i = 0;
@@ -173,14 +164,14 @@ void revenir_deplacement(t_tabDeplacement t, t_Plateau p, t_Cordoo positionJoueu
         i++;
     }
     touche = t[i];
-
+    printf("%d", touche);
     // Détermination des offsets en fonction de la touche
     if (touche == 'H' || touche == 'h') // 'z'
     {
-        y1 = 1; // Touche saisie par l'u
+        y1 = 1; // Touzsche saisie par l'u
         y2 = 2;
     }
-    else if (touche == 'B' || 'b') // 's'
+    else if (touche == 'B' || touche == 'b') // 's'
     {
         y1 = -1;
         y2 = -2;
@@ -198,13 +189,14 @@ void revenir_deplacement(t_tabDeplacement t, t_Plateau p, t_Cordoo positionJoueu
 
     if ((x1 != 0 || y1 != 0))
     {
+        deplacer_joueur(p, positionJoueur[0][0], positionJoueur[0][1], y1, x1);
         if (touche >= 65 && touche <= 90)
         {
-            deplacer_joueur(p, positionJoueur[0][0], positionJoueur[0][1], y1, x1);
-            positionJoueur[0][0] += y1;
-            positionJoueur[0][1] += x1;
-            t[i] = ' ';
+            deplacer_caisse(p, positionJoueur[0][0] - y2, positionJoueur[0][1] - x2, y1, x1, y2, x2);
         }
+        positionJoueur[0][0] += y1;
+        positionJoueur[0][1] += x1;
+        t[i] = ' ';
     }
 }
 
@@ -326,7 +318,7 @@ bool gagner_partie(t_Plateau plateauJeu, t_Cordoo pointCordoo, int nombrePoint)
  * Si l'utilisateur choisit de recommencer, recharge la partie
  * initiale et réinitialise le compteur de déplacements.
  */
-void recomencer_partie(t_Plateau plateauJeu, char fichier[], int *nDeplacement)
+void recomencer_partie(t_Plateau plateauJeu, char fichier[], int *nDeplacement, t_tabDeplacement tab)
 {
     int recommencer; // Choix de recommencer
 
@@ -336,7 +328,8 @@ void recomencer_partie(t_Plateau plateauJeu, char fichier[], int *nDeplacement)
     if (recommencer) // Si l'utilisateur veut recommencer
     {
         charger_partie(plateauJeu, fichier); // Recharge la partie
-        *nDeplacement = 0;                   // Réinitialise le compteur
+        initialiser_plateau(tab);
+        *nDeplacement = 0; // Réinitialise le compteur
     }
 }
 
@@ -405,7 +398,10 @@ void trouver_direction(t_Plateau plateauJeu, t_Cordoo positionJoueur, t_tabDepla
             maj = verifier_majuscule();
             (*nDeplacement)++;
         }
-        memoriser_deplacement(tabDirection, touche, *nDeplacement, maj);
+        if ((positionJoueur[0][1] + positionJoueur[0][0]) != sokoX + sokoY)
+        {
+            memoriser_deplacement(tabDirection, touche, *nDeplacement, maj);
+        }
     }
 }
 
